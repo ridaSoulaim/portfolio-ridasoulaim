@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const submitBtn = contactForm?.querySelector('button[type="submit"]');
 
   if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
+    contactForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const nameInput = document.getElementById('name');
@@ -399,14 +399,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const subjectInput = document.getElementById('subject');
       const messageInput = document.getElementById('message');
 
-      if (!nameInput.value.trim() || !emailInput.value.trim() || !messageInput.value.trim()) {
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+      const subject = subjectInput.value.trim();
+      const message = messageInput.value.trim();
+
+      if (!name || !email || !message) {
         showToast('Please fill out all required fields.', 'error');
         return;
       }
 
       // Simple email regex check
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailPattern.test(emailInput.value.trim())) {
+      if (!emailPattern.test(email)) {
         showToast('Please enter a valid email address.', 'error');
         return;
       }
@@ -414,14 +419,44 @@ document.addEventListener('DOMContentLoaded', () => {
       // Loading state
       const originalText = submitBtn.innerHTML;
       submitBtn.disabled = true;
-      submitBtn.innerHTML = `<span>Sending message...</span>`;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Sending message...</span>`;
 
-      setTimeout(() => {
+      try {
+        const response = await fetch('https://formsubmit.co/ajax/ridasoul3@gmail.com', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            _replyto: email,
+            _subject: subject ? `${subject} — ${name}` : `Portfolio Contact from ${name}`,
+            message: message,
+            _template: 'table',
+            _captcha: 'false'
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && (data.success === 'true' || data.success === true)) {
+          contactForm.reset();
+          showToast('Message sent successfully! Rida will reply to your email shortly.', 'success');
+        } else if (data.message && data.message.toLowerCase().includes('activation')) {
+          contactForm.reset();
+          showToast('Activation email sent! Please check ridasoul3@gmail.com to activate FormSubmit.', 'info');
+        } else {
+          throw new Error(data.message || 'Error occurred while sending message');
+        }
+      } catch (err) {
+        console.error('Contact form submission error:', err);
+        showToast('Could not send message. Please email directly at ridasoul3@gmail.com', 'error');
+      } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
-        contactForm.reset();
-        showToast('Message sent successfully! Rida will reply shortly.', 'success');
-      }, 1200);
+      }
     });
   }
 
